@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<ruleset name="pattonwebz/signed-releases-for-edd Coding Standards">
+    <description>WordPress coding standards for signed-releases-for-edd.</description>
+
+    <file>.</file>
+
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+
+    <arg name="extensions" value="php"/>
+    <arg value="sp"/>
+    <arg value="p"/>
+    <arg value="s"/>
+
+    <config name="testVersion" value="7.4-"/>
+    <config name="minimum_supported_wp_version" value="6.0"/>
+
+    <rule ref="WordPress-Core"/>
+    <rule ref="WordPress-Extra"/>
+    <rule ref="WordPress-Docs"/>
+    <rule ref="PHPCompatibilityWP">
+        <include-pattern>*.php</include-pattern>
+    </rule>
+
+    <!-- Capabilities registered by Easy Digital Downloads. -->
+    <rule ref="WordPress.WP.Capabilities">
+        <properties>
+            <property name="custom_capabilities" type="array">
+                <element value="edit_products"/>
+            </property>
+        </properties>
+    </rule>
+
+    <rule ref="WordPress.WP.I18n">
+        <properties>
+            <property name="text_domain" type="array">
+                <element value="signed-releases-for-edd"/>
+            </property>
+        </properties>
+    </rule>
+
+    <!-- The includes/ classes are PSR-4 (namespaced, StudlyCaps files), not
+         WP class-*.php naming. -->
+    <rule ref="WordPress.Files.FileName">
+        <exclude-pattern>includes/*</exclude-pattern>
+    </rule>
+
+    <ini name="error_reporting" value="E_ALL &#38; ~E_DEPRECATED"/>
+</ruleset>

@@ -1,0 +1,41 @@
+{
+    "name": "pattonwebz/signed-releases-for-edd",
+    "description": "Serves minisign signatures for EDD download files: SL API injection and a public signature endpoint.",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "William Patton",
+            "email": "will@pattonwebz.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "PattonWebz\\SignedReleasesForEDD\\": "includes/"
+        }
+    },
+    "require-dev": {
+        "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+        "phpcompatibility/phpcompatibility-wp": "^2.1",
+        "sirbrillig/phpcs-variable-analysis": "^2.11",
+        "squizlabs/php_codesniffer": "^3.10",
+        "wp-coding-standards/wpcs": "^3.1"
+    },
+    "scripts": {
+        "lint": "@phpcs",
+        "format": "@phpcbf",
+        "phpcs": "vendor/bin/phpcs",
+        "phpcbf": "vendor/bin/phpcbf"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    }
+}
