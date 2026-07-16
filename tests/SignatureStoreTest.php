@@ -190,6 +190,49 @@ final class SignatureStoreTest extends TestCase {
 		$this->assertSame( SignatureStore::STATUS_NONE, $this->store->discover( 17 )['status'] );
 	}
 
+	// ---- Sync vs. async discovery decision -----------------------------------------
+
+	public function testResolvesLocallyTrueForLocalFile(): void {
+		$path = $this->placeFile( 'p-1.0.0.zip', $this->makeMinisig() );
+		$this->setupDownload( 26, '1.0.0', array( $path ) );
+
+		$this->assertTrue( $this->store->resolves_locally( 26 ) );
+	}
+
+	public function testResolvesLocallyTrueForUploadsUrl(): void {
+		$this->placeFile( 'p-1.0.0.zip', $this->makeMinisig() );
+		$this->setupDownload( 27, '1.0.0', array( 'https://store.example/wp-content/uploads/edd/p-1.0.0.zip' ) );
+
+		$this->assertTrue( $this->store->resolves_locally( 27 ) );
+	}
+
+	public function testResolvesLocallyTrueWithNoFilesYet(): void {
+		$this->setupDownload( 28, '1.0.0', array() );
+
+		$this->assertTrue( $this->store->resolves_locally( 28 ) );
+	}
+
+	public function testResolvesLocallyTrueForBareObjectKeyNotFalseNetworkFetch(): void {
+		// Unreachable-but-not-a-network-fetch: cheap to resolve (instantly
+		// "can't read this"), so still safe to run inline.
+		$this->setupDownload( 29, '1.0.0', array( 's3://bucket/p-1.0.0.zip' ) );
+
+		$this->assertTrue( $this->store->resolves_locally( 29 ) );
+	}
+
+	public function testResolvesLocallyFalseForOffsiteHttpUrl(): void {
+		$this->setupDownload( 35, '1.0.0', array( 'https://cdn.example/releases/p-1.0.0.zip' ) );
+
+		$this->assertFalse( $this->store->resolves_locally( 35 ) );
+	}
+
+	public function testResolvesLocallyFalseWhenAnyOfSeveralFilesIsOffsite(): void {
+		$local = $this->placeFile( 'standard.zip', $this->makeMinisig() );
+		$this->setupDownload( 36, '1.0.0', array( $local, 'https://cdn.example/pro.zip' ) );
+
+		$this->assertFalse( $this->store->resolves_locally( 36 ) );
+	}
+
 	// ---- Refresh + archive --------------------------------------------------------
 
 	public function testRefreshArchivesUnderCurrentVersion(): void {

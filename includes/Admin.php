@@ -4,10 +4,11 @@
  *
  *  - A metabox on the download edit screen showing signature status, the
  *    archived versions, and a "check now" button.
- *  - Discovery runs OFF the request path: a save schedules a one-off event
- *    (so a slow offsite fetch never blocks the editor, block-editor REST
- *    saves, quick-edit, or programmatic imports); a manual "check now" runs
- *    it inline on explicit admin request.
+ *  - Discovery runs inline on save when every file resolves to disk (cheap,
+ *    no network); a save with a genuinely offsite file schedules a one-off
+ *    event instead, so a slow fetch never blocks the editor, block-editor
+ *    REST saves, quick-edit, or programmatic imports. A manual "check now"
+ *    always runs inline on explicit admin request.
  *  - A per-user notice warns when a versioned release has no signature (or an
  *    ambiguous / offsite-unreachable one).
  *
@@ -166,10 +167,15 @@ class Admin {
 	}
 
 	/**
-	 * On save: schedule discovery rather than run it inline. save_post_download
-	 * fires for block-editor REST saves, quick-edit, and programmatic
-	 * wp_update_post() (imports/migrations) too — none of which should block
-	 * on a possible 15s offsite fetch.
+	 * On save: run discovery inline when every file resolves to disk (a fast
+	 * read, no network), otherwise schedule it. save_post_download fires for
+	 * block-editor REST saves, quick-edit, and programmatic wp_update_post()
+	 * (imports/migrations) too, so a genuine offsite fetch (up to 15s) must
+	 * never run inline here — but deferring the common local-storage case to
+	 * a cron event that WP-cron may not run for a while leaves a real window
+	 * where an enforce-mode client sees "missing signature" for a release
+	 * that is, in fact, already signed on disk. Running inline whenever it's
+	 * cheap closes that window instead of just narrowing it.
 	 *
 	 * @param int $post_id The download ID.
 	 */
@@ -179,6 +185,12 @@ class Admin {
 		}
 
 		if ( '' === $this->store->current_version( $post_id ) ) {
+			return;
+		}
+
+		if ( $this->store->resolves_locally( $post_id ) ) {
+			$this->refresh_and_notify( (int) $post_id );
+
 			return;
 		}
 
@@ -194,7 +206,17 @@ class Admin {
 	 * @param int $post_id The download ID.
 	 */
 	public function run_refresh( $post_id ) {
-		$post_id = (int) $post_id;
+		$this->refresh_and_notify( (int) $post_id );
+	}
+
+	/**
+	 * Discover + archive, then notify the download's author if the current
+	 * version ended up without a usable signature. Shared by the inline
+	 * (local-storage) and scheduled-event (offsite) discovery paths.
+	 *
+	 * @param int $post_id The download ID.
+	 */
+	private function refresh_and_notify( $post_id ) {
 		$status  = $this->store->refresh( $post_id );
 		$version = $this->store->current_version( $post_id );
 

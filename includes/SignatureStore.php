@@ -165,7 +165,7 @@ class SignatureStore {
 				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Local disk read of a containment-checked path, off the request path; WP_Filesystem adds nothing here.
 				$contents = file_get_contents( $local );
 			}
-		} elseif ( preg_match( '#^https?://#i', $location ) ) {
+		} elseif ( $this->requires_network_fetch( $location ) ) {
 			// Offsite but publicly fetchable: the .minisig must be uploaded
 			// next to the file and reachable at the same URL + ".minisig".
 			$response = wp_remote_get(
@@ -190,6 +190,48 @@ class SignatureStore {
 		}
 
 		return $this->looks_like_minisig( $contents ) ? $contents : null;
+	}
+
+	/**
+	 * Whether reading a candidate at this location requires a blocking
+	 * network fetch (a publicly-reachable http(s) URL outside the uploads
+	 * directory), as opposed to a disk read or an unreachable reference.
+	 *
+	 * @param string $location Path or URL of the expected signature.
+	 *
+	 * @return bool
+	 */
+	private function requires_network_fetch( $location ) {
+		return (bool) preg_match( '#^https?://#i', $location );
+	}
+
+	/**
+	 * Whether every one of the download's files resolves to disk (locally,
+	 * or blocked/unreachable without a network round trip) rather than
+	 * needing a live HTTP fetch. When true, discover() never blocks on
+	 * network I/O, so it is cheap enough to run inline on save instead of
+	 * deferring to cron — closing the window between "version bumped" and
+	 * "the deferred check eventually ran" that pure async discovery leaves
+	 * open for enforce-mode clients.
+	 *
+	 * @param int $download_id Download (post) ID.
+	 *
+	 * @return bool
+	 */
+	public function resolves_locally( $download_id ) {
+		foreach ( (array) edd_get_download_files( $download_id ) as $file ) {
+			if ( empty( $file['file'] ) ) {
+				continue;
+			}
+
+			$local = $this->to_local_path( $file['file'] );
+
+			if ( null === $local && $this->requires_network_fetch( $file['file'] ) ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**

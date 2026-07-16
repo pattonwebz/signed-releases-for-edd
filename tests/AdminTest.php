@@ -95,8 +95,9 @@ final class AdminTest extends TestCase {
 
 	// ---- Save-time scheduling --------------------------------------------------------
 
-	public function testSaveSchedulesDiscoveryOnce(): void {
+	public function testSaveSchedulesDiscoveryOnceForOffsiteFiles(): void {
 		update_post_meta( 40, '_edd_sl_version', '1.0.0' );
+		$GLOBALS['__edd_download_files'][40] = array( array( 'file' => 'https://cdn.example/p.zip' ) );
 
 		$this->admin->on_download_save( 40 );
 		$this->admin->on_download_save( 40 );
@@ -114,11 +115,34 @@ final class AdminTest extends TestCase {
 
 	public function testSaveSkipsRevisionsAndAutosaves(): void {
 		update_post_meta( 42, '_edd_sl_version', '1.0.0' );
-		$GLOBALS['__wp_revisions'] = array( 42 );
+		$GLOBALS['__edd_download_files'][42] = array( array( 'file' => 'https://cdn.example/p.zip' ) );
+		$GLOBALS['__wp_revisions']           = array( 42 );
 
 		$this->admin->on_download_save( 42 );
 
 		$this->assertSame( array(), $GLOBALS['__wp_scheduled'] );
+	}
+
+	public function testSaveRunsDiscoveryInlineForLocalFilesInsteadOfScheduling(): void {
+		$this->placeSignedFile( 43, '1.0.0' );
+
+		$this->admin->on_download_save( 43 );
+
+		$this->assertSame( array(), $GLOBALS['__wp_scheduled'], 'Local files resolve inline; nothing to schedule.' );
+		$this->assertSame( SignatureStore::STATUS_FOUND, $this->store->status( 43 ) );
+	}
+
+	public function testSaveRunsDiscoveryInlineAndNotifiesOnFailureForLocalFiles(): void {
+		update_post_meta( 44, '_edd_sl_version', '1.0.0' );
+		$GLOBALS['__edd_download_files'][44] = array();
+		$GLOBALS['__wp_post_fields'][44]     = array( 'post_author' => 7 );
+
+		$this->admin->on_download_save( 44 );
+
+		$this->assertSame( array(), $GLOBALS['__wp_scheduled'] );
+		$notice = get_user_meta( 7, Admin::NOTICE_META );
+		$this->assertIsArray( $notice );
+		$this->assertSame( 44, $notice['download_id'] );
 	}
 
 	// ---- Refresh outcomes ---------------------------------------------------------------
