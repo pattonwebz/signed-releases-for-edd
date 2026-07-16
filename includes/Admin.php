@@ -31,7 +31,7 @@ defined( 'ABSPATH' ) || exit;
 class Admin {
 
 	const CRON_HOOK   = 'srfe_refresh_signature';
-	const NOTICE_META = '_srfe_admin_notice'; // Per-user meta, not a global transient.
+	const NOTICE_META = '_srfe_admin_notice'; // Per-user meta: array of notices keyed by download ID, not a single value.
 	const NONCE       = 'srfe_check_now';
 	const RETRY_META  = '_srfe_refresh_retry_count';
 
@@ -322,15 +322,22 @@ class Admin {
 		$author = (int) get_post_field( 'post_author', $post_id );
 
 		if ( $author > 0 ) {
-			update_user_meta(
-				$author,
-				self::NOTICE_META,
-				[
-					'download_id' => $post_id,
-					'version'     => $version,
-					'status'      => $status,
-				]
-			);
+			$notices = get_user_meta( $author, self::NOTICE_META, true );
+
+			if ( ! is_array( $notices ) ) {
+				$notices = [];
+			}
+
+			// Keyed by download ID: independent products' notices coexist
+			// instead of clobbering each other; a repeat hit on the same
+			// download just refreshes its own entry.
+			$notices[ $post_id ] = [
+				'download_id' => $post_id,
+				'version'     => $version,
+				'status'      => $status,
+			];
+
+			update_user_meta( $author, self::NOTICE_META, $notices );
 		}
 	}
 
@@ -382,19 +389,25 @@ class Admin {
 		}
 
 		$user_id = get_current_user_id();
-		$notice  = get_user_meta( $user_id, self::NOTICE_META, true );
+		$notices = get_user_meta( $user_id, self::NOTICE_META, true );
 
-		if ( ! is_array( $notice ) ) {
+		if ( ! is_array( $notices ) || [] === $notices ) {
 			return;
 		}
 
 		delete_user_meta( $user_id, self::NOTICE_META );
 
-		printf(
-			'<div class="notice notice-warning is-dismissible"><p><strong>%s</strong> %s</p></div>',
-			esc_html__( 'Release signature problem:', 'signed-releases-for-edd' ),
-			esc_html( $this->status_message( $notice['status'], (string) $notice['version'], get_the_title( $notice['download_id'] ) ) )
-		);
+		foreach ( $notices as $notice ) {
+			if ( ! is_array( $notice ) ) {
+				continue;
+			}
+
+			printf(
+				'<div class="notice notice-warning is-dismissible"><p><strong>%s</strong> %s</p></div>',
+				esc_html__( 'Release signature problem:', 'signed-releases-for-edd' ),
+				esc_html( $this->status_message( $notice['status'], (string) $notice['version'], get_the_title( $notice['download_id'] ) ) )
+			);
+		}
 	}
 
 	/**

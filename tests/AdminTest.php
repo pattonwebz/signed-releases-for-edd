@@ -144,9 +144,9 @@ final class AdminTest extends TestCase {
 		// SFTP/direct disk write wouldn't otherwise ever get picked up again.
 		$this->assertCount( 1, $GLOBALS['__wp_scheduled'] );
 		$this->assertSame( Admin::CRON_HOOK, $GLOBALS['__wp_scheduled'][0]['hook'] );
-		$notice = get_user_meta( 7, Admin::NOTICE_META );
-		$this->assertIsArray( $notice );
-		$this->assertSame( 44, $notice['download_id'] );
+		$notices = get_user_meta( 7, Admin::NOTICE_META );
+		$this->assertIsArray( $notices );
+		$this->assertSame( 44, $notices[44]['download_id'] );
 	}
 
 	// ---- Late .minisig uploads --------------------------------------------------------
@@ -269,11 +269,30 @@ final class AdminTest extends TestCase {
 
 		$this->admin->run_refresh( 51 );
 
-		$notice = get_user_meta( 7, Admin::NOTICE_META );
+		$notices = get_user_meta( 7, Admin::NOTICE_META );
 
-		$this->assertIsArray( $notice );
-		$this->assertSame( 51, $notice['download_id'] );
-		$this->assertSame( SignatureStore::STATUS_NONE, $notice['status'] );
+		$this->assertIsArray( $notices );
+		$this->assertSame( 51, $notices[51]['download_id'] );
+		$this->assertSame( SignatureStore::STATUS_NONE, $notices[51]['status'] );
+	}
+
+	public function testIndependentDownloadsBothKeepNotices(): void {
+		update_post_meta( 52, '_edd_sl_version', '1.0.0' );
+		update_post_meta( 53, '_edd_sl_version', '1.0.0' );
+		$GLOBALS['__edd_download_files'][52] = array();
+		$GLOBALS['__edd_download_files'][53] = array();
+		$GLOBALS['__wp_post_fields'][52]     = array( 'post_author' => 7 );
+		$GLOBALS['__wp_post_fields'][53]     = array( 'post_author' => 7 );
+
+		$this->admin->run_refresh( 52 );
+		$this->admin->run_refresh( 53 );
+
+		$notices = get_user_meta( 7, Admin::NOTICE_META );
+
+		$this->assertIsArray( $notices );
+		$this->assertCount( 2, $notices, 'Both products must have a surviving notice, not just the most recent one.' );
+		$this->assertSame( 52, $notices[52]['download_id'] );
+		$this->assertSame( 53, $notices[53]['download_id'] );
 	}
 
 	// ---- Metabox rendering ------------------------------------------------------------------
