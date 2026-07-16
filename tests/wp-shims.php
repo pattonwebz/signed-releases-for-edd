@@ -72,7 +72,7 @@ function edd_get_download_files( $download_id ) {
 // ---- Hooks ------------------------------------------------------------------
 
 function add_filter( $tag, $callback, $priority = 10, $accepted_args = 1 ) {
-	$GLOBALS['__wp_hooks'][] = array( 'tag' => $tag, 'callback' => $callback );
+	$GLOBALS['__wp_hooks'][] = array( 'tag' => $tag, 'callback' => $callback, 'priority' => $priority );
 
 	return true;
 }

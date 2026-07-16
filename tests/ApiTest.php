@@ -39,6 +39,19 @@ final class ApiTest extends TestCase {
 		$this->assertContains( 'edd_get_release_signature', $tags );
 	}
 
+	public function testInjectionRunsAfterStagedRollouts(): void {
+		// SL's bundled staged-rollouts add-on rewrites new_version on the
+		// same filter at priority 11; injecting earlier would sign a version
+		// the response no longer offers.
+		$this->api->hook();
+
+		foreach ( $GLOBALS['__wp_hooks'] as $hook ) {
+			if ( 'edd_sl_license_response' === $hook['tag'] ) {
+				$this->assertGreaterThan( 11, $hook['priority'] );
+			}
+		}
+	}
+
 	public function testInjectAddsSignatureFieldsForArchivedVersion(): void {
 		$this->store->archive_signature( 30, '1.2.3', $this->minisig() );
 
@@ -75,11 +88,28 @@ final class ApiTest extends TestCase {
 		$this->assertSame( $response, $this->api->inject_signature( $response, new WP_Post( 32 ) ) );
 	}
 
+	public function testInjectAcceptsSoftwareLicensingProductModel(): void {
+		// SL >= 3.8 passes its LicensedProduct model (extends EDD_Download),
+		// not a WP_Post — anything object-shaped with an ID must work.
+		$this->store->archive_signature( 34, '1.2.3', $this->minisig() );
+
+		$download     = new \stdClass();
+		$download->ID = 34;
+
+		$response = $this->api->inject_signature(
+			array( 'new_version' => '1.2.3' ),
+			$download
+		);
+
+		$this->assertSame( $this->minisig(), $response['signature'] );
+	}
+
 	public function testInjectLeavesResponseUntouchedForNonPost(): void {
 		$response = array( 'new_version' => '1.2.3' );
 
 		$this->assertSame( $response, $this->api->inject_signature( $response, null ) );
 		$this->assertSame( $response, $this->api->inject_signature( $response, 'download' ) );
+		$this->assertSame( $response, $this->api->inject_signature( $response, new \stdClass() ) );
 	}
 
 	public function testInjectLeavesResponseUntouchedWhenUnsigned(): void {

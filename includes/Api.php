@@ -44,22 +44,29 @@ class Api {
 
 	/**
 	 * Attach the response filter and the endpoint action.
+	 *
+	 * Priority 20: Software Licensing's bundled staged-rollouts add-on
+	 * rewrites `new_version` on this same filter at priority 11, so we must
+	 * run after it to sign the version as finally offered.
 	 */
 	public function hook() {
-		add_filter( 'edd_sl_license_response', array( $this, 'inject_signature' ), 10, 2 );
+		add_filter( 'edd_sl_license_response', array( $this, 'inject_signature' ), 20, 2 );
 		add_action( 'edd_get_release_signature', array( $this, 'serve_signature' ) );
 	}
 
 	/**
 	 * Add signature fields to the get_version response array.
 	 *
-	 * @param array   $response The API response about to be JSON-encoded.
-	 * @param WP_Post $download The download post.
+	 * @param array          $response The API response about to be JSON-encoded.
+	 * @param WP_Post|object $download The download: SL >= 3.8 passes its
+	 *                                 LicensedProduct model (extends
+	 *                                 EDD_Download), older versions a
+	 *                                 WP_Post. Only the ID is needed.
 	 *
 	 * @return array
 	 */
 	public function inject_signature( $response, $download ) {
-		if ( empty( $response['new_version'] ) || ! $download instanceof WP_Post ) {
+		if ( empty( $response['new_version'] ) || ! is_object( $download ) || empty( $download->ID ) ) {
 			return $response;
 		}
 
