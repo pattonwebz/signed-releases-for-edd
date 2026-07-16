@@ -61,15 +61,16 @@ class Admin {
 	 * Attach all admin hooks.
 	 */
 	public function hook() {
-		add_action( 'add_meta_boxes', array( $this, 'register_metabox' ) );
-		add_action( 'save_post_download', array( $this, 'on_download_save' ), 20 );
-		add_action( self::CRON_HOOK, array( $this, 'run_refresh' ) );
-		add_action( 'admin_post_srfe_check_now', array( $this, 'handle_check_now' ) );
-		add_action( 'admin_notices', array( $this, 'render_notice' ) );
-		add_action( 'add_attachment', array( $this, 'on_minisig_attachment_saved' ) );
-		add_action( 'edit_attachment', array( $this, 'on_minisig_attachment_saved' ) );
-		add_filter( 'upload_mimes', array( $this, 'allow_minisig_upload' ) );
-		add_filter( 'wp_check_filetype_and_ext', array( $this, 'check_minisig_filetype' ), 10, 3 );
+		add_action( 'add_meta_boxes', [ $this, 'register_metabox' ] );
+		add_action( 'save_post_download', [ $this, 'on_download_save' ], 20 );
+		add_action( self::CRON_HOOK, [ $this, 'run_refresh' ] );
+		add_action( 'admin_post_srfe_check_now', [ $this, 'handle_check_now' ] );
+		add_action( 'admin_notices', [ $this, 'render_notice' ] );
+		add_action( 'add_attachment', [ $this, 'on_minisig_attachment_saved' ] );
+		add_action( 'edit_attachment', [ $this, 'on_minisig_attachment_saved' ] );
+		// phpcs:ignore WordPressVIPMinimum.Hooks.RestrictedHooks.upload_mimes -- allow_minisig_upload() only ever adds the `minisig` extension as text/plain, gated on edit_products/manage_options; no SVG/executable types are added.
+		add_filter( 'upload_mimes', [ $this, 'allow_minisig_upload' ] );
+		add_filter( 'wp_check_filetype_and_ext', [ $this, 'check_minisig_filetype' ], 10, 3 );
 	}
 
 	/**
@@ -151,7 +152,7 @@ class Admin {
 		add_meta_box(
 			'srfe-signature-status',
 			esc_html__( 'Release Signatures', 'signed-releases-for-edd' ),
-			array( $this, 'render_metabox' ),
+			[ $this, 'render_metabox' ],
 			'download',
 			'side',
 			'default'
@@ -239,7 +240,7 @@ class Admin {
 			return;
 		}
 
-		if ( ! wp_verify_nonce( wp_unslash( $_POST['srfe_plugin_slug_nonce'] ), 'srfe_plugin_slug_' . $post_id )
+		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['srfe_plugin_slug_nonce'] ) ), 'srfe_plugin_slug_' . $post_id )
 			|| ! current_user_can( 'edit_post', $post_id ) ) {
 			return;
 		}
@@ -277,8 +278,8 @@ class Admin {
 			return;
 		}
 
-		if ( ! wp_next_scheduled( self::CRON_HOOK, array( $post_id ) ) ) {
-			wp_schedule_single_event( time() + 5, self::CRON_HOOK, array( $post_id ) );
+		if ( ! wp_next_scheduled( self::CRON_HOOK, [ $post_id ] ) ) {
+			wp_schedule_single_event( time() + 5, self::CRON_HOOK, [ $post_id ] );
 		}
 	}
 
@@ -314,7 +315,7 @@ class Admin {
 		// instead of leaving the miss permanent until the next save or a
 		// manual "check now". AMBIGUOUS needs an admin decision (split the
 		// download, pick one file); retrying can't fix that, so don't.
-		if ( in_array( $status, array( SignatureStore::STATUS_NONE, SignatureStore::STATUS_OFFSITE ), true ) ) {
+		if ( in_array( $status, [ SignatureStore::STATUS_NONE, SignatureStore::STATUS_OFFSITE ], true ) ) {
 			$this->schedule_retry( $post_id );
 		}
 
@@ -324,11 +325,11 @@ class Admin {
 			update_user_meta(
 				$author,
 				self::NOTICE_META,
-				array(
+				[
 					'download_id' => $post_id,
 					'version'     => $version,
 					'status'      => $status,
-				)
+				]
 			);
 		}
 	}
@@ -341,7 +342,7 @@ class Admin {
 	 * @param int $post_id The download ID.
 	 */
 	private function schedule_retry( $post_id ) {
-		if ( wp_next_scheduled( self::CRON_HOOK, array( $post_id ) ) ) {
+		if ( wp_next_scheduled( self::CRON_HOOK, [ $post_id ] ) ) {
 			return;
 		}
 
@@ -349,7 +350,7 @@ class Admin {
 		$delay    = (int) min( self::RETRY_BASE_DELAY * ( 2 ** $attempts ), self::RETRY_MAX_DELAY );
 
 		update_post_meta( $post_id, self::RETRY_META, $attempts + 1 );
-		wp_schedule_single_event( time() + $delay, self::CRON_HOOK, array( $post_id ) );
+		wp_schedule_single_event( time() + $delay, self::CRON_HOOK, [ $post_id ] );
 	}
 
 	/**

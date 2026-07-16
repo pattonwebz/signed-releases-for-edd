@@ -111,7 +111,7 @@ class SignatureStore {
 	 * @return array{status:string, minisig:?string}
 	 */
 	public function discover( $download_id ) {
-		$found           = array();
+		$found           = [];
 		$saw_unreachable = false;
 
 		foreach ( (array) edd_get_download_files( $download_id ) as $file ) {
@@ -127,25 +127,25 @@ class SignatureStore {
 		}
 
 		if ( count( $found ) > 1 ) {
-			return array(
+			return [
 				'status'  => self::STATUS_AMBIGUOUS,
 				'minisig' => null,
-			);
+			];
 		}
 
 		if ( 1 === count( $found ) ) {
-			return array(
+			return [
 				'status'  => self::STATUS_FOUND,
 				'minisig' => $found[0],
-			);
+			];
 		}
 
 		// Nothing found. Distinguish "unsigned" from "offsite and unfetchable"
 		// so the admin gets an actionable message instead of a silent miss.
-		return array(
+		return [
 			'status'  => $saw_unreachable ? self::STATUS_OFFSITE : self::STATUS_NONE,
 			'minisig' => null,
-		);
+		];
 	}
 
 	/**
@@ -164,7 +164,7 @@ class SignatureStore {
 
 		if ( null !== $local ) {
 			if ( is_readable( $local ) ) {
-				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Local disk read of a containment-checked path, off the request path; WP_Filesystem adds nothing here.
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents, WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown -- Local disk read of a containment-checked path, not a remote fetch; off the request path; WP_Filesystem adds nothing here.
 				$contents = file_get_contents( $local );
 			}
 		} elseif ( $this->requires_network_fetch( $location ) ) {
@@ -172,10 +172,11 @@ class SignatureStore {
 			// next to the file and reachable at the same URL + ".minisig".
 			$response = wp_safe_remote_get(
 				$location,
-				array(
+				[
+					// phpcs:ignore WordPressVIPMinimum.Performance.RemoteRequestTimeout.timeout_timeout -- deliberately generous: this only ever runs off a live request (deferred to cron for offsite files, or an explicit admin "check now"), never inline on a page load.
 					'timeout'     => 15,
 					'redirection' => 2,
-				)
+				]
 			);
 
 			if ( ! is_wp_error( $response ) && 200 === (int) wp_remote_retrieve_response_code( $response ) ) {
@@ -445,9 +446,9 @@ class SignatureStore {
 	 * @return array<string, int>
 	 */
 	private function slug_index() {
-		$index = get_option( self::OPTION_SLUG_INDEX, array() );
+		$index = get_option( self::OPTION_SLUG_INDEX, [] );
 
-		return is_array( $index ) ? $index : array();
+		return is_array( $index ) ? $index : [];
 	}
 
 	/**
@@ -460,7 +461,7 @@ class SignatureStore {
 	public function archive( $download_id ) {
 		$archive = get_post_meta( $download_id, self::META_ARCHIVE, true );
 
-		return is_array( $archive ) ? $archive : array();
+		return is_array( $archive ) ? $archive : [];
 	}
 
 	/**

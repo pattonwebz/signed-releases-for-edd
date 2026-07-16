@@ -50,8 +50,8 @@ class Api {
 	 * run after it to sign the version as finally offered.
 	 */
 	public function hook() {
-		add_filter( 'edd_sl_license_response', array( $this, 'inject_signature' ), 20, 2 );
-		add_action( 'edd_get_release_signature', array( $this, 'serve_signature' ) );
+		add_filter( 'edd_sl_license_response', [ $this, 'inject_signature' ], 20, 2 );
+		add_action( 'edd_get_release_signature', [ $this, 'serve_signature' ] );
 	}
 
 	/**
