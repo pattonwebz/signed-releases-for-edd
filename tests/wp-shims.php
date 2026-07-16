@@ -57,6 +57,18 @@ function get_attached_file( $attachment_id ) {
 	return $GLOBALS['__wp_attached_files'][ $attachment_id ] ?? false;
 }
 
+// ---- Options ----------------------------------------------------------------
+
+function get_option( $key, $default = false ) {
+	return $GLOBALS['__wp_options'][ $key ] ?? $default;
+}
+
+function update_option( $key, $value ) {
+	$GLOBALS['__wp_options'][ $key ] = $value;
+
+	return true;
+}
+
 function get_post_type( $post_id ) {
 	return $GLOBALS['__wp_post_types'][ $post_id ] ?? false;
 }
@@ -190,6 +202,25 @@ function esc_url( $url ) {
 	return (string) $url;
 }
 
+function esc_attr( $text ) {
+	return htmlspecialchars( (string) $text, ENT_QUOTES );
+}
+
+/** Fixed sentinel value: tests set this literal string to simulate a passing nonce. */
+function wp_verify_nonce( $nonce, $action = -1 ) {
+	return 'test-nonce' === $nonce ? 1 : false;
+}
+
+function wp_nonce_field( $action = -1, $name = '_wpnonce', $referer = true, $echo = true ) {
+	$field = '<input type="hidden" name="' . esc_attr( $name ) . '" value="test-nonce" />';
+
+	if ( $echo ) {
+		echo $field;
+	}
+
+	return $field;
+}
+
 function absint( $value ) {
 	return abs( (int) $value );
 }
@@ -239,4 +270,6 @@ function srfe_shims_reset(): void {
 	$GLOBALS['__wp_autosaves']        = array();
 	$GLOBALS['__wp_meta_boxes']       = array();
 	$GLOBALS['__wp_attached_files']   = array();
+	$GLOBALS['__wp_options']          = array();
+	$_POST                            = array();
 }

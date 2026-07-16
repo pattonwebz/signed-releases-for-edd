@@ -26,8 +26,10 @@ defined( 'ABSPATH' ) || exit;
  */
 class SignatureStore {
 
-	const META_ARCHIVE = '_srfe_signature_archive';
-	const META_STATUS  = '_srfe_signature_status';
+	const META_ARCHIVE      = '_srfe_signature_archive';
+	const META_STATUS       = '_srfe_signature_status';
+	const META_PLUGIN_SLUG  = '_srfe_plugin_slug';
+	const OPTION_SLUG_INDEX = 'srfe_plugin_slug_index';
 
 	/** Keep signatures for this many past versions per download. */
 	const ARCHIVE_LIMIT = 20;
@@ -381,6 +383,71 @@ class SignatureStore {
 	 */
 	public function current_version( $download_id ) {
 		return (string) get_post_meta( $download_id, '_edd_sl_version', true );
+	}
+
+	/**
+	 * The plugin slug explicitly mapped to this download, if any.
+	 *
+	 * @param int $download_id Download (post) ID.
+	 *
+	 * @return string Plugin slug, '' when unmapped.
+	 */
+	public function plugin_slug( $download_id ) {
+		return (string) get_post_meta( $download_id, self::META_PLUGIN_SLUG, true );
+	}
+
+	/**
+	 * Map a download to the plugin slug its updater is configured with.
+	 *
+	 * The store's post_name (what the slug-only endpoint fallback resolves
+	 * against) is set independently by the shop admin — often for SEO/URL
+	 * reasons — and frequently differs from the signed plugin's actual slug.
+	 * An explicit mapping makes slug-only lookups reliable instead of a
+	 * coincidence that only works when the two happen to match.
+	 *
+	 * @param int    $download_id Download (post) ID.
+	 * @param string $slug        Sanitized plugin slug; '' clears the mapping.
+	 */
+	public function set_plugin_slug( $download_id, $slug ) {
+		$index    = $this->slug_index();
+		$previous = $this->plugin_slug( $download_id );
+
+		if ( '' !== $previous ) {
+			unset( $index[ $previous ] );
+		}
+
+		if ( '' === $slug ) {
+			delete_post_meta( $download_id, self::META_PLUGIN_SLUG );
+		} else {
+			update_post_meta( $download_id, self::META_PLUGIN_SLUG, $slug );
+			$index[ $slug ] = (int) $download_id;
+		}
+
+		update_option( self::OPTION_SLUG_INDEX, $index );
+	}
+
+	/**
+	 * Resolve a download by its explicitly-mapped plugin slug.
+	 *
+	 * @param string $slug Plugin slug.
+	 *
+	 * @return int Download (post) ID, 0 when unmapped.
+	 */
+	public function find_by_plugin_slug( $slug ) {
+		$index = $this->slug_index();
+
+		return isset( $index[ $slug ] ) ? (int) $index[ $slug ] : 0;
+	}
+
+	/**
+	 * The slug => download_id index backing find_by_plugin_slug().
+	 *
+	 * @return array<string, int>
+	 */
+	private function slug_index() {
+		$index = get_option( self::OPTION_SLUG_INDEX, array() );
+
+		return is_array( $index ) ? $index : array();
 	}
 
 	/**

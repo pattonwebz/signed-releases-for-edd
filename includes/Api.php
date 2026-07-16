@@ -96,6 +96,13 @@ class Api {
 		$version = isset( $data['version'] ) ? sanitize_text_field( wp_unslash( $data['version'] ) ) : '';
 
 		if ( 0 === $item_id && '' !== $slug ) {
+			// Prefer the admin-configured mapping (the signed plugin's actual
+			// slug) over guessing from the download's post_name, which is set
+			// independently and frequently differs.
+			$item_id = $this->store->find_by_plugin_slug( $slug );
+		}
+
+		if ( 0 === $item_id && '' !== $slug ) {
 			$download = get_page_by_path( $slug, OBJECT, 'download' );
 			$item_id  = $download instanceof WP_Post ? $download->ID : 0;
 		}

@@ -302,4 +302,56 @@ final class AdminTest extends TestCase {
 		$this->assertStringContainsString( 'has no .minisig signature', $html );
 		$this->assertStringContainsString( 'Check signature now', $html );
 	}
+
+	public function testMetaboxRendersPluginSlugFieldWithCurrentValue(): void {
+		$this->store->set_plugin_slug( 62, 'my-existing-plugin' );
+
+		ob_start();
+		$this->admin->render_metabox( new WP_Post( 62 ) );
+		$html = ob_get_clean();
+
+		$this->assertStringContainsString( 'name="srfe_plugin_slug"', $html );
+		$this->assertStringContainsString( 'value="my-existing-plugin"', $html );
+	}
+
+	// ---- Plugin-slug mapping save handling ---------------------------------------------
+
+	public function testSaveStoresPluginSlugWithValidNonceAndCapability(): void {
+		$GLOBALS['__wp_user_caps']            = array( 'edit_post' );
+		$_POST['srfe_plugin_slug']            = 'accessibility-checker-pro';
+		$_POST['srfe_plugin_slug_nonce']      = 'test-nonce';
+
+		$this->admin->on_download_save( 63 );
+
+		$this->assertSame( 'accessibility-checker-pro', $this->store->plugin_slug( 63 ) );
+		$this->assertSame( 63, $this->store->find_by_plugin_slug( 'accessibility-checker-pro' ) );
+	}
+
+	public function testSaveIgnoresPluginSlugWithoutCapability(): void {
+		$GLOBALS['__wp_user_caps']       = array();
+		$_POST['srfe_plugin_slug']       = 'should-not-save';
+		$_POST['srfe_plugin_slug_nonce'] = 'test-nonce';
+
+		$this->admin->on_download_save( 64 );
+
+		$this->assertSame( '', $this->store->plugin_slug( 64 ) );
+	}
+
+	public function testSaveIgnoresPluginSlugWithBadNonce(): void {
+		$GLOBALS['__wp_user_caps']       = array( 'edit_post' );
+		$_POST['srfe_plugin_slug']       = 'should-not-save';
+		$_POST['srfe_plugin_slug_nonce'] = 'forged';
+
+		$this->admin->on_download_save( 65 );
+
+		$this->assertSame( '', $this->store->plugin_slug( 65 ) );
+	}
+
+	public function testSaveLeavesMappingUntouchedWhenFieldAbsent(): void {
+		$this->store->set_plugin_slug( 66, 'already-set' );
+
+		$this->admin->on_download_save( 66 );
+
+		$this->assertSame( 'already-set', $this->store->plugin_slug( 66 ) );
+	}
 }

@@ -164,6 +164,8 @@ class Admin {
 	 * @param WP_Post $post The download being edited.
 	 */
 	public function render_metabox( $post ) {
+		$this->render_plugin_slug_field( $post );
+
 		$version = $this->store->current_version( $post->ID );
 
 		if ( '' === $version ) {
@@ -206,6 +208,44 @@ class Admin {
 	}
 
 	/**
+	 * Render the plugin-slug mapping field. The endpoint's slug-only fallback
+	 * otherwise resolves against post_name, which the shop admin sets
+	 * independently and which frequently doesn't match the signed plugin's
+	 * actual slug — this field makes that lookup reliable instead of a
+	 * coincidence.
+	 *
+	 * @param WP_Post $post The download being edited.
+	 */
+	private function render_plugin_slug_field( $post ) {
+		printf(
+			'<p><label for="srfe-plugin-slug">%s</label><br /><input type="text" id="srfe-plugin-slug" name="srfe_plugin_slug" value="%s" class="widefat" placeholder="my-plugin-slug" /></p>',
+			esc_html__( 'Plugin slug (for update-checker lookups)', 'signed-releases-for-edd' ),
+			esc_attr( $this->store->plugin_slug( $post->ID ) )
+		);
+
+		wp_nonce_field( 'srfe_plugin_slug_' . $post->ID, 'srfe_plugin_slug_nonce' );
+	}
+
+	/**
+	 * Save the plugin-slug mapping submitted alongside the metabox, when
+	 * present and the nonce for it verifies.
+	 *
+	 * @param int $post_id The download ID.
+	 */
+	private function maybe_save_plugin_slug( $post_id ) {
+		if ( ! isset( $_POST['srfe_plugin_slug'], $_POST['srfe_plugin_slug_nonce'] ) ) {
+			return;
+		}
+
+		if ( ! wp_verify_nonce( wp_unslash( $_POST['srfe_plugin_slug_nonce'] ), 'srfe_plugin_slug_' . $post_id )
+			|| ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+
+		$this->store->set_plugin_slug( $post_id, sanitize_title( wp_unslash( $_POST['srfe_plugin_slug'] ) ) );
+	}
+
+	/**
 	 * On save: run discovery inline when every file resolves to disk (a fast
 	 * read, no network), otherwise schedule it. save_post_download fires for
 	 * block-editor REST saves, quick-edit, and programmatic wp_update_post()
@@ -222,6 +262,8 @@ class Admin {
 		if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) {
 			return;
 		}
+
+		$this->maybe_save_plugin_slug( $post_id );
 
 		if ( '' === $this->store->current_version( $post_id ) ) {
 			return;

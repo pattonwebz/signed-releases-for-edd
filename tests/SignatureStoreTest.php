@@ -233,6 +233,36 @@ final class SignatureStoreTest extends TestCase {
 		$this->assertFalse( $this->store->resolves_locally( 36 ) );
 	}
 
+	// ---- Explicit plugin-slug mapping ------------------------------------------------
+
+	public function testPluginSlugDefaultsEmpty(): void {
+		$this->assertSame( '', $this->store->plugin_slug( 70 ) );
+		$this->assertSame( 0, $this->store->find_by_plugin_slug( 'anything' ) );
+	}
+
+	public function testSetPluginSlugIsFindableAndReadable(): void {
+		$this->store->set_plugin_slug( 70, 'my-plugin' );
+
+		$this->assertSame( 'my-plugin', $this->store->plugin_slug( 70 ) );
+		$this->assertSame( 70, $this->store->find_by_plugin_slug( 'my-plugin' ) );
+	}
+
+	public function testReassigningSlugRemovesTheOldMapping(): void {
+		$this->store->set_plugin_slug( 71, 'old-slug' );
+		$this->store->set_plugin_slug( 71, 'new-slug' );
+
+		$this->assertSame( 0, $this->store->find_by_plugin_slug( 'old-slug' ), 'Stale mapping must not linger.' );
+		$this->assertSame( 71, $this->store->find_by_plugin_slug( 'new-slug' ) );
+	}
+
+	public function testClearingSlugRemovesTheMapping(): void {
+		$this->store->set_plugin_slug( 72, 'temp-slug' );
+		$this->store->set_plugin_slug( 72, '' );
+
+		$this->assertSame( '', $this->store->plugin_slug( 72 ) );
+		$this->assertSame( 0, $this->store->find_by_plugin_slug( 'temp-slug' ) );
+	}
+
 	// ---- Refresh + archive --------------------------------------------------------
 
 	public function testRefreshArchivesUnderCurrentVersion(): void {
