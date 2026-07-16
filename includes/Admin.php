@@ -11,6 +11,10 @@
  *    always runs inline on explicit admin request.
  *  - A per-user notice warns when a versioned release has no signature (or an
  *    ambiguous / offsite-unreachable one).
+ *  - A late .minisig uploaded straight to the media library (after the
+ *    download was already saved) re-triggers discovery for its parent
+ *    download, and a NONE/OFFSITE result reschedules its own retry instead
+ *    of waiting for the next save or a manual "check now".
  *
  * @package PattonWebz\SignedReleasesForEDD
  */
@@ -29,6 +33,13 @@ class Admin {
 	const CRON_HOOK   = 'srfe_refresh_signature';
 	const NOTICE_META = '_srfe_admin_notice'; // Per-user meta, not a global transient.
 	const NONCE       = 'srfe_check_now';
+	const RETRY_META  = '_srfe_refresh_retry_count';
+
+	/** Initial delay before the first automatic retry of a failed check. */
+	const RETRY_BASE_DELAY = 300; // 5 minutes.
+
+	/** Retry delay ceiling: a NONE/OFFSITE download still gets rechecked, just slowly. */
+	const RETRY_MAX_DELAY = 21600; // 6 hours.
 
 	/**
 	 * Signature archive access.
@@ -55,8 +66,36 @@ class Admin {
 		add_action( self::CRON_HOOK, array( $this, 'run_refresh' ) );
 		add_action( 'admin_post_srfe_check_now', array( $this, 'handle_check_now' ) );
 		add_action( 'admin_notices', array( $this, 'render_notice' ) );
+		add_action( 'add_attachment', array( $this, 'on_minisig_attachment_saved' ) );
+		add_action( 'edit_attachment', array( $this, 'on_minisig_attachment_saved' ) );
 		add_filter( 'upload_mimes', array( $this, 'allow_minisig_upload' ) );
 		add_filter( 'wp_check_filetype_and_ext', array( $this, 'check_minisig_filetype' ), 10, 3 );
+	}
+
+	/**
+	 * A .minisig uploaded straight to the media library (the documented
+	 * "upload the signature next to the file" workflow) never fires
+	 * save_post_download, so without this hook discovery would only pick it
+	 * up at the next product save or a manual "check now". If the attachment
+	 * is parented to a download — the normal case when it's uploaded from
+	 * that download's edit screen — re-run discovery for it.
+	 *
+	 * @param int $attachment_id Attachment post ID.
+	 */
+	public function on_minisig_attachment_saved( $attachment_id ) {
+		$file = get_attached_file( $attachment_id );
+
+		if ( ! is_string( $file ) || '.minisig' !== substr( strtolower( $file ), -8 ) ) {
+			return;
+		}
+
+		$download_id = (int) get_post_field( 'post_parent', $attachment_id );
+
+		if ( $download_id <= 0 || 'download' !== get_post_type( $download_id ) ) {
+			return;
+		}
+
+		$this->on_download_save( $download_id );
 	}
 
 	/**
@@ -221,7 +260,18 @@ class Admin {
 		$version = $this->store->current_version( $post_id );
 
 		if ( self::STATUS_OK === $this->normalise_status( $status ) ) {
+			delete_post_meta( $post_id, self::RETRY_META );
+
 			return;
+		}
+
+		// NONE/OFFSITE can resolve on their own (a late upload, storage
+		// becoming reachable again) — automatically recheck with backoff
+		// instead of leaving the miss permanent until the next save or a
+		// manual "check now". AMBIGUOUS needs an admin decision (split the
+		// download, pick one file); retrying can't fix that, so don't.
+		if ( in_array( $status, array( SignatureStore::STATUS_NONE, SignatureStore::STATUS_OFFSITE ), true ) ) {
+			$this->schedule_retry( $post_id );
 		}
 
 		$author = (int) get_post_field( 'post_author', $post_id );
@@ -237,6 +287,25 @@ class Admin {
 				)
 			);
 		}
+	}
+
+	/**
+	 * Reschedule a discovery recheck with exponential backoff (capped), so a
+	 * NONE/OFFSITE result gets retried automatically instead of staying
+	 * permanently missed.
+	 *
+	 * @param int $post_id The download ID.
+	 */
+	private function schedule_retry( $post_id ) {
+		if ( wp_next_scheduled( self::CRON_HOOK, array( $post_id ) ) ) {
+			return;
+		}
+
+		$attempts = (int) get_post_meta( $post_id, self::RETRY_META, true );
+		$delay    = (int) min( self::RETRY_BASE_DELAY * ( 2 ** $attempts ), self::RETRY_MAX_DELAY );
+
+		update_post_meta( $post_id, self::RETRY_META, $attempts + 1 );
+		wp_schedule_single_event( time() + $delay, self::CRON_HOOK, array( $post_id ) );
 	}
 
 	/**

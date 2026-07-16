@@ -47,6 +47,16 @@ function update_post_meta( $post_id, $key, $value ) {
 	return true;
 }
 
+function delete_post_meta( $post_id, $key ) {
+	unset( $GLOBALS['__wp_post_meta'][ $post_id ][ $key ] );
+
+	return true;
+}
+
+function get_attached_file( $attachment_id ) {
+	return $GLOBALS['__wp_attached_files'][ $attachment_id ] ?? false;
+}
+
 function get_post_type( $post_id ) {
 	return $GLOBALS['__wp_post_types'][ $post_id ] ?? false;
 }
@@ -228,4 +238,5 @@ function srfe_shims_reset(): void {
 	$GLOBALS['__wp_revisions']        = array();
 	$GLOBALS['__wp_autosaves']        = array();
 	$GLOBALS['__wp_meta_boxes']       = array();
+	$GLOBALS['__wp_attached_files']   = array();
 }

@@ -139,10 +139,116 @@ final class AdminTest extends TestCase {
 
 		$this->admin->on_download_save( 44 );
 
-		$this->assertSame( array(), $GLOBALS['__wp_scheduled'] );
+		// Discovery itself ran inline (no scheduling needed for that), but a
+		// NONE result still schedules an automatic retry — a late upload via
+		// SFTP/direct disk write wouldn't otherwise ever get picked up again.
+		$this->assertCount( 1, $GLOBALS['__wp_scheduled'] );
+		$this->assertSame( Admin::CRON_HOOK, $GLOBALS['__wp_scheduled'][0]['hook'] );
 		$notice = get_user_meta( 7, Admin::NOTICE_META );
 		$this->assertIsArray( $notice );
 		$this->assertSame( 44, $notice['download_id'] );
+	}
+
+	// ---- Late .minisig uploads --------------------------------------------------------
+
+	public function testAttachmentSavedRetriggersDiscoveryForParentDownload(): void {
+		update_post_meta( 45, '_edd_sl_version', '1.0.0' );
+		$path = SRFE_TEST_SANDBOX . '/uploads/edd/late-1.0.0.zip';
+		file_put_contents( $path, 'zip' );
+		file_put_contents( $path . '.minisig', $this->minisig() );
+		$this->created[]                         = $path;
+		$this->created[]                         = $path . '.minisig';
+		$GLOBALS['__edd_download_files'][45]      = array( array( 'file' => $path ) );
+		$GLOBALS['__wp_post_types'][45]           = 'download';
+		$GLOBALS['__wp_post_fields'][900]         = array( 'post_parent' => 45 );
+		$GLOBALS['__wp_attached_files'][900]      = $path . '.minisig';
+
+		$this->admin->on_minisig_attachment_saved( 900 );
+
+		$this->assertSame( SignatureStore::STATUS_FOUND, $this->store->status( 45 ) );
+	}
+
+	public function testAttachmentSavedIgnoresNonMinisigFiles(): void {
+		$GLOBALS['__wp_post_fields'][901]    = array( 'post_parent' => 45 );
+		$GLOBALS['__wp_post_types'][45]      = 'download';
+		$GLOBALS['__wp_attached_files'][901] = '/uploads/some-image.png';
+
+		$this->admin->on_minisig_attachment_saved( 901 );
+
+		$this->assertSame( '', $this->store->status( 45 ) );
+	}
+
+	public function testAttachmentSavedIgnoresUnparentedUploads(): void {
+		$GLOBALS['__wp_attached_files'][902] = '/uploads/loose.zip.minisig';
+
+		// No post_parent set at all — must not touch download 0 / error.
+		$this->admin->on_minisig_attachment_saved( 902 );
+
+		$this->assertSame( array(), $GLOBALS['__wp_scheduled'] );
+	}
+
+	// ---- Retry backoff on failed discovery ---------------------------------------------
+
+	public function testFailedRefreshSchedulesBackoffRetry(): void {
+		update_post_meta( 46, '_edd_sl_version', '1.0.0' );
+		$GLOBALS['__edd_download_files'][46] = array();
+
+		$this->admin->run_refresh( 46 );
+
+		$this->assertCount( 1, $GLOBALS['__wp_scheduled'] );
+		$first_delay = $GLOBALS['__wp_scheduled'][0]['time'] - time();
+		$this->assertGreaterThanOrEqual( Admin::RETRY_BASE_DELAY, $first_delay );
+
+		// Simulate the retry firing and failing again: backoff must grow.
+		$GLOBALS['__wp_scheduled'] = array();
+		$this->admin->run_refresh( 46 );
+
+		$this->assertCount( 1, $GLOBALS['__wp_scheduled'] );
+		$second_delay = $GLOBALS['__wp_scheduled'][0]['time'] - time();
+		$this->assertGreaterThan( $first_delay, $second_delay );
+	}
+
+	public function testSuccessfulRefreshClearsRetryState(): void {
+		update_post_meta( 47, '_edd_sl_version', '1.0.0' );
+		$GLOBALS['__edd_download_files'][47] = array();
+		$this->admin->run_refresh( 47 ); // Fails once, schedules a retry.
+
+		$GLOBALS['__wp_scheduled'] = array();
+		$this->placeSignedFile( 47, '1.0.0' );
+		$this->admin->run_refresh( 47 ); // Now succeeds.
+
+		$this->assertSame( '', get_post_meta( 47, Admin::RETRY_META ) );
+
+		// A later failure must restart backoff from the base delay, not
+		// continue escalating from the earlier failed run.
+		$GLOBALS['__edd_download_files'][47] = array();
+		$this->admin->run_refresh( 47 );
+
+		$delay = $GLOBALS['__wp_scheduled'][0]['time'] - time();
+		$this->assertGreaterThanOrEqual( Admin::RETRY_BASE_DELAY, $delay );
+		$this->assertLessThan( Admin::RETRY_BASE_DELAY * 2, $delay );
+	}
+
+	public function testAmbiguousStatusDoesNotScheduleRetry(): void {
+		$a = SRFE_TEST_SANDBOX . '/uploads/edd/amb-a.zip';
+		$b = SRFE_TEST_SANDBOX . '/uploads/edd/amb-b.zip';
+		file_put_contents( $a, 'zip' );
+		file_put_contents( $b, 'zip' );
+		file_put_contents( $a . '.minisig', $this->minisig() );
+		file_put_contents(
+			$b . '.minisig',
+			str_replace( 'x version:1.0.0', 'y version:1.0.0', $this->minisig() )
+		);
+		foreach ( array( $a, $b, $a . '.minisig', $b . '.minisig' ) as $created ) {
+			$this->created[] = $created;
+		}
+		update_post_meta( 48, '_edd_sl_version', '1.0.0' );
+		$GLOBALS['__edd_download_files'][48] = array( array( 'file' => $a ), array( 'file' => $b ) );
+
+		$this->admin->run_refresh( 48 );
+
+		$this->assertSame( SignatureStore::STATUS_AMBIGUOUS, $this->store->status( 48 ) );
+		$this->assertSame( array(), $GLOBALS['__wp_scheduled'] );
 	}
 
 	// ---- Refresh outcomes ---------------------------------------------------------------
