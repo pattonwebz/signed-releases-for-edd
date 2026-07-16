@@ -150,6 +150,11 @@ final class SignatureStoreTest extends TestCase {
 
 		$this->assertSame( SignatureStore::STATUS_FOUND, $result['status'] );
 		$this->assertSame( array( $url . '.minisig' ), $GLOBALS['__wp_http_requests'] );
+		$this->assertSame(
+			array( $url . '.minisig' ),
+			$GLOBALS['__wp_safe_http_requests'],
+			'Offsite discovery must use wp_safe_remote_get, not the unfiltered wp_remote_get.'
+		);
 	}
 
 	public function testDiscoverReportsOffsiteUnreachableForBareObjectKeys(): void {

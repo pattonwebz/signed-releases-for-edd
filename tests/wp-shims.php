@@ -117,6 +117,13 @@ function wp_remote_get( $url, $args = array() ) {
 	return $GLOBALS['__wp_http_responses'][ $url ] ?? new WP_Error( 'http_failure' );
 }
 
+/** wp_safe_remote_get() additionally blocks internal-network hosts in real WP; the shim reuses the same fixture. */
+function wp_safe_remote_get( $url, $args = array() ) {
+	$GLOBALS['__wp_safe_http_requests'][] = $url;
+
+	return wp_remote_get( $url, $args );
+}
+
 function wp_remote_retrieve_response_code( $response ) {
 	return is_array( $response ) ? ( $response['code'] ?? 0 ) : 0;
 }
@@ -271,5 +278,6 @@ function srfe_shims_reset(): void {
 	$GLOBALS['__wp_meta_boxes']       = array();
 	$GLOBALS['__wp_attached_files']   = array();
 	$GLOBALS['__wp_options']          = array();
+	$GLOBALS['__wp_safe_http_requests'] = array();
 	$_POST                            = array();
 }

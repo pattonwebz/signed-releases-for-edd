@@ -170,7 +170,7 @@ class SignatureStore {
 		} elseif ( $this->requires_network_fetch( $location ) ) {
 			// Offsite but publicly fetchable: the .minisig must be uploaded
 			// next to the file and reachable at the same URL + ".minisig".
-			$response = wp_remote_get(
+			$response = wp_safe_remote_get(
 				$location,
 				array(
 					'timeout'     => 15,
