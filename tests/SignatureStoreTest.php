@@ -268,6 +268,35 @@ final class SignatureStoreTest extends TestCase {
 		$this->assertSame( 0, $this->store->find_by_plugin_slug( 'temp-slug' ) );
 	}
 
+	public function testSetPluginSlugRefusesSlugClaimedByAnotherLiveDownload(): void {
+		// The index drives the public endpoint's slug resolution, so letting
+		// one product's editor take over another's slug would re-point that
+		// plugin's signature serving.
+		$GLOBALS['__wp_post_types'][70] = 'download';
+		$this->assertTrue( $this->store->set_plugin_slug( 70, 'contested-slug' ) );
+
+		$this->assertFalse( $this->store->set_plugin_slug( 71, 'contested-slug' ) );
+		$this->assertSame( 70, $this->store->find_by_plugin_slug( 'contested-slug' ), 'Original mapping must survive the takeover attempt.' );
+		$this->assertSame( '', $this->store->plugin_slug( 71 ) );
+	}
+
+	public function testSetPluginSlugReclaimAllowedWhenHolderIsGone(): void {
+		// Download 70 never gets a post type registered here — it stands in
+		// for a deleted download whose stale index entry must not squat on
+		// the slug forever.
+		$this->assertTrue( $this->store->set_plugin_slug( 70, 'orphaned-slug' ) );
+		$this->assertTrue( $this->store->set_plugin_slug( 71, 'orphaned-slug' ) );
+		$this->assertSame( 71, $this->store->find_by_plugin_slug( 'orphaned-slug' ) );
+	}
+
+	public function testSetPluginSlugResaveOfSameDownloadIsAllowed(): void {
+		$GLOBALS['__wp_post_types'][70] = 'download';
+
+		$this->assertTrue( $this->store->set_plugin_slug( 70, 'my-plugin' ) );
+		$this->assertTrue( $this->store->set_plugin_slug( 70, 'my-plugin' ) );
+		$this->assertSame( 70, $this->store->find_by_plugin_slug( 'my-plugin' ) );
+	}
+
 	// ---- Refresh + archive --------------------------------------------------------
 
 	public function testRefreshArchivesUnderCurrentVersion(): void {

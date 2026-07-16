@@ -245,7 +245,14 @@ class Admin {
 			return;
 		}
 
-		$this->store->set_plugin_slug( $post_id, sanitize_title( wp_unslash( $_POST['srfe_plugin_slug'] ) ) );
+		$saved = $this->store->set_plugin_slug( $post_id, sanitize_title( wp_unslash( $_POST['srfe_plugin_slug'] ) ) );
+
+		if ( ! $saved ) {
+			// The slug is already mapped to another live download; the mapping
+			// was refused (it would have re-pointed that product's signature
+			// lookups here). Tell the saving user rather than failing silently.
+			$this->add_notice( get_current_user_id(), $post_id, self::STATUS_SLUG_CONFLICT );
+		}
 	}
 
 	/**
@@ -322,23 +329,36 @@ class Admin {
 		$author = (int) get_post_field( 'post_author', $post_id );
 
 		if ( $author > 0 ) {
-			$notices = get_user_meta( $author, self::NOTICE_META, true );
-
-			if ( ! is_array( $notices ) ) {
-				$notices = [];
-			}
-
-			// Keyed by download ID: independent products' notices coexist
-			// instead of clobbering each other; a repeat hit on the same
-			// download just refreshes its own entry.
-			$notices[ $post_id ] = [
-				'download_id' => $post_id,
-				'version'     => $version,
-				'status'      => $status,
-			];
-
-			update_user_meta( $author, self::NOTICE_META, $notices );
+			$this->add_notice( $author, $post_id, $status, $version );
 		}
+	}
+
+	/**
+	 * Queue an admin notice for a user about one download.
+	 *
+	 * Keyed by download ID: independent products' notices coexist instead of
+	 * clobbering each other; a repeat hit on the same download just refreshes
+	 * its own entry.
+	 *
+	 * @param int    $user_id Recipient user ID.
+	 * @param int    $post_id The download ID the notice is about.
+	 * @param string $status  A STATUS_* value understood by status_message().
+	 * @param string $version Version string, when relevant to the message.
+	 */
+	private function add_notice( $user_id, $post_id, $status, $version = '' ) {
+		$notices = get_user_meta( $user_id, self::NOTICE_META, true );
+
+		if ( ! is_array( $notices ) ) {
+			$notices = [];
+		}
+
+		$notices[ $post_id ] = [
+			'download_id' => $post_id,
+			'version'     => $version,
+			'status'      => $status,
+		];
+
+		update_user_meta( $user_id, self::NOTICE_META, $notices );
 	}
 
 	/**
@@ -423,6 +443,13 @@ class Admin {
 		$who = '' !== $title ? $title . ' ' : '';
 
 		switch ( $status ) {
+			case self::STATUS_SLUG_CONFLICT:
+				return sprintf(
+					/* translators: %s: product title (may be empty) */
+					__( '%splugin slug not saved: it is already mapped to another download. Each plugin slug can only point to one product — clear it there first if this is intentional.', 'signed-releases-for-edd' ),
+					$who
+				);
+
 			case SignatureStore::STATUS_AMBIGUOUS:
 				return sprintf(
 					/* translators: 1: product title (may be empty), 2: version number */
@@ -451,6 +478,9 @@ class Admin {
 
 	/** Internal marker for "no problem to report". */
 	const STATUS_OK = 'ok';
+
+	/** Notice status: a plugin-slug mapping was refused as already claimed. */
+	const STATUS_SLUG_CONFLICT = 'slug_conflict';
 
 	/**
 	 * Collapse "found" to the internal OK marker; problems pass through.

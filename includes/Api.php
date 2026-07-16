@@ -108,8 +108,15 @@ class Api {
 		}
 
 		// One 404 message for both "no such item" and "no signature" so the
-		// endpoint can't be used to enumerate which item IDs are real.
-		if ( 0 === $item_id || 'download' !== get_post_type( $item_id ) ) {
+		// endpoint can't be used to enumerate which item IDs are real. Only
+		// live products respond at all: a draft/pending download would leak
+		// an unreleased product's existence (and its version, via the trusted
+		// comment) to slug probing, and a trashed one has been deliberately
+		// pulled from sale. Private stays servable — hidden-but-sold products
+		// still ship updates their clients must be able to verify.
+		if ( 0 === $item_id
+			|| 'download' !== get_post_type( $item_id )
+			|| ! in_array( get_post_status( $item_id ), [ 'publish', 'private' ], true ) ) {
 			$this->respond( 404, __( 'No signature available.', 'signed-releases-for-edd' ) );
 		}
 

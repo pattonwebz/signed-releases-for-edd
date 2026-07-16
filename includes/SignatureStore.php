@@ -174,8 +174,12 @@ class SignatureStore {
 				$location,
 				[
 					// phpcs:ignore WordPressVIPMinimum.Performance.RemoteRequestTimeout.timeout_timeout -- deliberately generous: this only ever runs off a live request (deferred to cron for offsite files, or an explicit admin "check now"), never inline on a page load.
-					'timeout'     => 15,
-					'redirection' => 2,
+					'timeout'             => 15,
+					'redirection'         => 2,
+					// looks_like_minisig() rejects anything over 8 KB anyway;
+					// cap the transfer so a hostile/compromised offsite host
+					// can't feed an unbounded body into memory first.
+					'limit_response_size' => 8192,
 				]
 			);
 
@@ -406,12 +410,30 @@ class SignatureStore {
 	 * An explicit mapping makes slug-only lookups reliable instead of a
 	 * coincidence that only works when the two happen to match.
 	 *
+	 * A slug already mapped to a different, still-existing download is
+	 * refused: the index is what the public endpoint trusts to resolve
+	 * slug-only lookups, so letting any product's editor silently take over
+	 * another product's slug would let them re-point that plugin's signature
+	 * serving (a cross-product update-blocking denial of service, since the
+	 * hijacked signature can never verify the other plugin's files).
+	 *
 	 * @param int    $download_id Download (post) ID.
 	 * @param string $slug        Sanitized plugin slug; '' clears the mapping.
+	 *
+	 * @return bool True when saved (or cleared); false when the slug is
+	 *              already claimed by another download.
 	 */
 	public function set_plugin_slug( $download_id, $slug ) {
 		$index    = $this->slug_index();
 		$previous = $this->plugin_slug( $download_id );
+
+		if ( '' !== $slug ) {
+			$holder = isset( $index[ $slug ] ) ? (int) $index[ $slug ] : 0;
+
+			if ( $holder > 0 && $holder !== (int) $download_id && 'download' === get_post_type( $holder ) ) {
+				return false; // Claimed by another live download — refuse.
+			}
+		}
 
 		if ( '' !== $previous ) {
 			unset( $index[ $previous ] );
@@ -425,6 +447,8 @@ class SignatureStore {
 		}
 
 		update_option( self::OPTION_SLUG_INDEX, $index );
+
+		return true;
 	}
 
 	/**

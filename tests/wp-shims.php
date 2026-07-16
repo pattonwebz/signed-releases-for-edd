@@ -73,6 +73,16 @@ function get_post_type( $post_id ) {
 	return $GLOBALS['__wp_post_types'][ $post_id ] ?? false;
 }
 
+function get_post_status( $post_id ) {
+	if ( isset( $GLOBALS['__wp_post_statuses'][ $post_id ] ) ) {
+		return $GLOBALS['__wp_post_statuses'][ $post_id ];
+	}
+
+	// Fixtures that register a post type without an explicit status are
+	// treated as published, matching the common case tests already assume.
+	return isset( $GLOBALS['__wp_post_types'][ $post_id ] ) ? 'publish' : false;
+}
+
 function get_page_by_path( $path, $output = OBJECT, $post_type = 'post' ) {
 	return $GLOBALS['__wp_pages_by_path'][ $path ] ?? null;
 }
@@ -266,6 +276,7 @@ function add_meta_box( $id, $title, $callback, $screen = null, $context = 'advan
 function srfe_shims_reset(): void {
 	$GLOBALS['__wp_post_meta']        = array();
 	$GLOBALS['__wp_post_types']       = array();
+	$GLOBALS['__wp_post_statuses']    = array();
 	$GLOBALS['__wp_pages_by_path']    = array();
 	$GLOBALS['__wp_post_fields']      = array();
 	$GLOBALS['__edd_download_files']  = array();

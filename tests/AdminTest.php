@@ -373,4 +373,22 @@ final class AdminTest extends TestCase {
 
 		$this->assertSame( 'already-set', $this->store->plugin_slug( 66 ) );
 	}
+
+	public function testSaveRefusesSlugClaimedByAnotherDownloadAndNotifies(): void {
+		$GLOBALS['__wp_post_types'][60] = 'download';
+		$this->store->set_plugin_slug( 60, 'taken-slug' );
+
+		$GLOBALS['__wp_user_caps']       = array( 'edit_post', 'edit_products' );
+		$_POST['srfe_plugin_slug']       = 'taken-slug';
+		$_POST['srfe_plugin_slug_nonce'] = 'test-nonce';
+
+		$this->admin->on_download_save( 61 );
+
+		$this->assertSame( 60, $this->store->find_by_plugin_slug( 'taken-slug' ), 'Mapping must stay with the original download.' );
+		$this->assertSame( '', $this->store->plugin_slug( 61 ) );
+
+		$notices = get_user_meta( 1, Admin::NOTICE_META, true );
+		$this->assertIsArray( $notices );
+		$this->assertSame( Admin::STATUS_SLUG_CONFLICT, $notices[61]['status'], 'The saving user must be told the mapping was refused.' );
+	}
 }
