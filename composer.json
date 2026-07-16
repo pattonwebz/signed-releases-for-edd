@@ -20,15 +20,22 @@
     "require-dev": {
         "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
         "phpcompatibility/phpcompatibility-wp": "^2.1",
+        "phpunit/phpunit": "^9.6",
         "sirbrillig/phpcs-variable-analysis": "^2.11",
         "squizlabs/php_codesniffer": "^3.10",
         "wp-coding-standards/wpcs": "^3.1"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "PattonWebz\\SignedReleasesForEDD\\Tests\\": "tests/"
+        }
     },
     "scripts": {
         "lint": "@phpcs",
         "format": "@phpcbf",
         "phpcs": "vendor/bin/phpcs",
-        "phpcbf": "vendor/bin/phpcbf"
+        "phpcbf": "vendor/bin/phpcbf",
+        "test": "phpunit"
     },
     "minimum-stability": "stable",
     "prefer-stable": true,

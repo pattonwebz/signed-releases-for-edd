@@ -6,6 +6,9 @@
 
     <exclude-pattern>*/vendor/*</exclude-pattern>
     <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <!-- Test scaffolding shims WP functions and manages a sandbox; WPCS
+         rules target shipped plugin code. -->
+    <exclude-pattern>*/tests/*</exclude-pattern>
 
     <arg name="extensions" value="php"/>
     <arg value="sp"/>
