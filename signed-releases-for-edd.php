@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Signed Releases for EDD
- * Plugin URI:  https://github.com/pattonwebz/signed-zips-edd
+ * Plugin URI:  https://github.com/pattonwebz/signed-releases-for-edd
  * Description: Serves minisign signatures for EDD download files: injects them into the Software Licensing get_version API response and exposes a public signature endpoint for manual verification.
  * Version:     0.1.0
  * Author:      William Patton
