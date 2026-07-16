@@ -110,13 +110,13 @@ class Api {
 		// One 404 message for both "no such item" and "no signature" so the
 		// endpoint can't be used to enumerate which item IDs are real.
 		if ( 0 === $item_id || 'download' !== get_post_type( $item_id ) ) {
-			$this->respond( 404, 'No signature available.' );
+			$this->respond( 404, __( 'No signature available.', 'signed-releases-for-edd' ) );
 		}
 
 		$minisig = $this->store->get_signature( $item_id, $version );
 
 		if ( null === $minisig ) {
-			$this->respond( 404, 'No signature available.' );
+			$this->respond( 404, __( 'No signature available.', 'signed-releases-for-edd' ) );
 		}
 
 		nocache_headers();

@@ -150,7 +150,7 @@ class Admin {
 	public function register_metabox() {
 		add_meta_box(
 			'srfe-signature-status',
-			'Release Signatures',
+			esc_html__( 'Release Signatures', 'signed-releases-for-edd' ),
 			array( $this, 'render_metabox' ),
 			'download',
 			'side',
@@ -169,7 +169,7 @@ class Admin {
 		$version = $this->store->current_version( $post->ID );
 
 		if ( '' === $version ) {
-			echo '<p>Software Licensing version not set; nothing to sign.</p>';
+			echo '<p>' . esc_html__( 'Software Licensing version not set; nothing to sign.', 'signed-releases-for-edd' ) . '</p>';
 
 			return;
 		}
@@ -178,9 +178,10 @@ class Admin {
 
 		if ( null !== $minisig ) {
 			printf(
-				'<p style="color:#008a20;">&#10003; v%s signed (key <code>%s</code>)</p>',
+				/* translators: 1: version number, 2: signing key ID */
+				'<p style="color:#008a20;">&#10003; ' . esc_html__( 'v%1$s signed (key %2$s)', 'signed-releases-for-edd' ) . '</p>',
 				esc_html( $version ),
-				esc_html( (string) $this->store->key_id( $minisig ) )
+				'<code>' . esc_html( (string) $this->store->key_id( $minisig ) ) . '</code>'
 			);
 		} else {
 			echo '<p style="color:#d63638;">&#10007; ' . esc_html( $this->status_message( $this->store->status( $post->ID ), $version ) ) . '</p>';
@@ -190,7 +191,8 @@ class Admin {
 
 		if ( ! empty( $archived ) ) {
 			printf(
-				'<p>Archived signatures: %s</p>',
+				/* translators: %s: comma-separated list of archived version numbers */
+				'<p>' . esc_html__( 'Archived signatures: %s', 'signed-releases-for-edd' ) . '</p>',
 				esc_html( implode( ', ', array_reverse( $archived ) ) )
 			);
 		}
@@ -408,13 +410,28 @@ class Admin {
 
 		switch ( $status ) {
 			case SignatureStore::STATUS_AMBIGUOUS:
-				return sprintf( '%sv%s has several files with different signatures; the correct one cannot be determined automatically. Split the packages into separate downloads, or sign a single distributable file.', $who, $version );
+				return sprintf(
+					/* translators: 1: product title (may be empty), 2: version number */
+					__( '%1$sv%2$s has several files with different signatures; the correct one cannot be determined automatically. Split the packages into separate downloads, or sign a single distributable file.', 'signed-releases-for-edd' ),
+					$who,
+					$version
+				);
 
 			case SignatureStore::STATUS_OFFSITE:
-				return sprintf( '%sv%s is stored offsite and its .minisig could not be fetched. Upload the signature next to the file at a publicly reachable URL (same path + ".minisig").', $who, $version );
+				return sprintf(
+					/* translators: 1: product title (may be empty), 2: version number */
+					__( '%1$sv%2$s is stored offsite and its .minisig could not be fetched. Upload the signature next to the file at a publicly reachable URL (same path + ".minisig").', 'signed-releases-for-edd' ),
+					$who,
+					$version
+				);
 
 			default:
-				return sprintf( '%sv%s has no .minisig signature. Upload the one produced by the release workflow next to the file.', $who, $version );
+				return sprintf(
+					/* translators: 1: product title (may be empty), 2: version number */
+					__( '%1$sv%2$s has no .minisig signature. Upload the one produced by the release workflow next to the file.', 'signed-releases-for-edd' ),
+					$who,
+					$version
+				);
 		}
 	}
 

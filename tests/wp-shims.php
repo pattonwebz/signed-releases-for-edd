@@ -205,6 +205,10 @@ function esc_html__( $text, $domain = 'default' ) {
 	return esc_html( $text );
 }
 
+function __( $text, $domain = 'default' ) {
+	return $text;
+}
+
 function esc_url( $url ) {
 	return (string) $url;
 }

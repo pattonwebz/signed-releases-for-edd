@@ -7,6 +7,7 @@
  * Author:      William Patton
  * Author URI:  https://www.pattonwebz.com
  * License:     GPL-2.0-or-later
+ * Text Domain: signed-releases-for-edd
  * Requires PHP: 7.4
  *
  * Signatures are produced in CI by signing each release zip with minisign;
@@ -28,11 +29,13 @@ require_once PATTONWEBZ_SRFE_DIR . 'includes/Admin.php';
 add_action(
 	'plugins_loaded',
 	static function () {
+		load_plugin_textdomain( 'signed-releases-for-edd', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+
 		if ( ! function_exists( 'edd_get_download_files' ) ) {
 			add_action(
 				'admin_notices',
 				static function () {
-					echo '<div class="notice notice-error"><p>Signed Releases for EDD requires Easy Digital Downloads.</p></div>';
+					echo '<div class="notice notice-error"><p>' . esc_html__( 'Signed Releases for EDD requires Easy Digital Downloads.', 'signed-releases-for-edd' ) . '</p></div>';
 				}
 			);
 
