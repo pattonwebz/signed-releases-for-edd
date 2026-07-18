@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PattonWebz\SignedReleasesForEDD\Tests;
 
 use PattonWebz\SignedReleasesForEDD\Api;
+use PattonWebz\SignedReleasesForEDD\RevocationStore;
 use PattonWebz\SignedReleasesForEDD\SignatureStore;
 use PHPUnit\Framework\TestCase;
 use WP_Post;
@@ -37,6 +38,19 @@ final class ApiTest extends TestCase {
 
 		$this->assertContains( 'edd_sl_license_response', $tags );
 		$this->assertContains( 'edd_get_release_signature', $tags );
+	}
+
+	public function testHookWithoutRevocationStoreSkipsManifestEndpoint(): void {
+		$this->api->hook();
+
+		$this->assertNotContains( 'edd_get_revocation_manifest', array_column( $GLOBALS['__wp_hooks'], 'tag' ) );
+	}
+
+	public function testHookWithRevocationStoreRegistersManifestEndpoint(): void {
+		$api = new Api( $this->store, new RevocationStore( $this->store ) );
+		$api->hook();
+
+		$this->assertContains( 'edd_get_revocation_manifest', array_column( $GLOBALS['__wp_hooks'], 'tag' ) );
 	}
 
 	public function testInjectionRunsAfterStagedRollouts(): void {

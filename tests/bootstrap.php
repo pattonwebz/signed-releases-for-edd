@@ -26,8 +26,10 @@ require __DIR__ . '/wp-shims.php';
 srfe_shims_reset();
 
 require dirname( __DIR__ ) . '/includes/SignatureStore.php';
+require dirname( __DIR__ ) . '/includes/RevocationStore.php';
 require dirname( __DIR__ ) . '/includes/Api.php';
 require dirname( __DIR__ ) . '/includes/Admin.php';
+require dirname( __DIR__ ) . '/includes/RevocationAdmin.php';
 
 register_shutdown_function(
 	static function () use ( $sandbox ): void {

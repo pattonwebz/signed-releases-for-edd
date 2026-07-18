@@ -34,16 +34,25 @@ class Api {
 	private $store;
 
 	/**
+	 * Revocation-manifest access; null disables the manifest endpoint.
+	 *
+	 * @var RevocationStore|null
+	 */
+	private $revocations;
+
+	/**
 	 * Constructor.
 	 *
-	 * @param SignatureStore $store Signature archive access.
+	 * @param SignatureStore       $store       Signature archive access.
+	 * @param RevocationStore|null $revocations Revocation-manifest access.
 	 */
-	public function __construct( SignatureStore $store ) {
-		$this->store = $store;
+	public function __construct( SignatureStore $store, RevocationStore $revocations = null ) {
+		$this->store       = $store;
+		$this->revocations = $revocations;
 	}
 
 	/**
-	 * Attach the response filter and the endpoint action.
+	 * Attach the response filter and the endpoint actions.
 	 *
 	 * Priority 20: Software Licensing's bundled staged-rollouts add-on
 	 * rewrites `new_version` on this same filter at priority 11, so we must
@@ -52,6 +61,10 @@ class Api {
 	public function hook() {
 		add_filter( 'edd_sl_license_response', [ $this, 'inject_signature' ], 20, 2 );
 		add_action( 'edd_get_release_signature', [ $this, 'serve_signature' ] );
+
+		if ( null !== $this->revocations ) {
+			add_action( 'edd_get_revocation_manifest', [ $this, 'serve_revocation_manifest' ] );
+		}
 	}
 
 	/**
@@ -130,6 +143,30 @@ class Api {
 		status_header( 200 );
 		header( 'Content-Type: text/plain; charset=utf-8' );
 		echo $minisig; // phpcs:ignore WordPress.Security.EscapeOutput -- plain-text signature body.
+		exit;
+	}
+
+	/**
+	 * Handle ?edd_action=get_revocation_manifest — the store-wide, root-signed
+	 * key-revocation manifest, served as a JSON envelope of the exact signed
+	 * manifest bytes plus their .minisig. Public and unauthenticated for the
+	 * same reason signatures are: the artifact is useless to forge (clients
+	 * verify it against their pinned revocation root key) and every update
+	 * check needs it. No parameters — one manifest covers the whole shop.
+	 */
+	public function serve_revocation_manifest() {
+		$envelope = $this->revocations->envelope();
+
+		if ( null === $envelope ) {
+			$this->respond( 404, __( 'No revocation manifest available.', 'signed-releases-for-edd' ) );
+		}
+
+		// nocache always: a stale cached manifest delays a revocation — the
+		// one artifact where freshness is the entire point of fetching.
+		nocache_headers();
+		status_header( 200 );
+		header( 'Content-Type: application/json; charset=utf-8' );
+		echo $envelope; // phpcs:ignore WordPress.Security.EscapeOutput -- JSON envelope body built by wp_json_encode().
 		exit;
 	}
 

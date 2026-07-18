@@ -270,6 +270,23 @@ function add_meta_box( $id, $title, $callback, $screen = null, $context = 'advan
 	$GLOBALS['__wp_meta_boxes'][] = $id;
 }
 
+function wp_json_encode( $data, $options = 0, $depth = 512 ) {
+	return json_encode( $data, $options, $depth );
+}
+
+function add_submenu_page( $parent, $page_title, $menu_title, $capability, $menu_slug, $callback = '' ) {
+	$GLOBALS['__wp_submenu_pages'][] = array(
+		'parent'     => $parent,
+		'capability' => $capability,
+		'slug'       => $menu_slug,
+	);
+}
+
+function sanitize_key( $key ) {
+	return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $key ) );
+}
+
+
 /**
  * Reset all shim state between tests.
  */
@@ -294,5 +311,6 @@ function srfe_shims_reset(): void {
 	$GLOBALS['__wp_attached_files']   = array();
 	$GLOBALS['__wp_options']          = array();
 	$GLOBALS['__wp_safe_http_requests'] = array();
+	$GLOBALS['__wp_submenu_pages']    = array();
 	$_POST                            = array();
 }

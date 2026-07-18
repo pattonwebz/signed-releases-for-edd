@@ -23,8 +23,10 @@ define( 'PATTONWEBZ_SRFE_VERSION', '0.1.0' );
 define( 'PATTONWEBZ_SRFE_DIR', plugin_dir_path( __FILE__ ) );
 
 require_once PATTONWEBZ_SRFE_DIR . 'includes/SignatureStore.php';
+require_once PATTONWEBZ_SRFE_DIR . 'includes/RevocationStore.php';
 require_once PATTONWEBZ_SRFE_DIR . 'includes/Api.php';
 require_once PATTONWEBZ_SRFE_DIR . 'includes/Admin.php';
+require_once PATTONWEBZ_SRFE_DIR . 'includes/RevocationAdmin.php';
 
 add_action(
 	'plugins_loaded',
@@ -42,9 +44,11 @@ add_action(
 			return;
 		}
 
-		$store = new PattonWebz\SignedReleasesForEDD\SignatureStore();
+		$store       = new PattonWebz\SignedReleasesForEDD\SignatureStore();
+		$revocations = new PattonWebz\SignedReleasesForEDD\RevocationStore( $store );
 
-		( new PattonWebz\SignedReleasesForEDD\Api( $store ) )->hook();
+		( new PattonWebz\SignedReleasesForEDD\Api( $store, $revocations ) )->hook();
 		( new PattonWebz\SignedReleasesForEDD\Admin( $store ) )->hook();
+		( new PattonWebz\SignedReleasesForEDD\RevocationAdmin( $revocations ) )->hook();
 	}
 );
