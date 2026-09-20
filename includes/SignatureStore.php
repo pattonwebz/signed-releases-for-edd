@@ -276,7 +276,7 @@ class SignatureStore {
 	 * @return string|null
 	 */
 	private function contain( $candidate ) {
-		$root = realpath( apply_filters( 'srfe_signature_path_root', WP_CONTENT_DIR ) );
+		$root = realpath( apply_filters( 'srfe/signature_path_root', WP_CONTENT_DIR ) );
 		$dir  = realpath( dirname( $candidate ) );
 
 		if ( false === $root || false === $dir ) {

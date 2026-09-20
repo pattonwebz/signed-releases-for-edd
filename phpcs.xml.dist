@@ -58,6 +58,13 @@
     </rule>
     <rule ref="Generic.Arrays.DisallowLongArraySyntax"/>
 
+    <!-- Public hooks use the {prefix}/{hook} convention (`srfe/signature_path_root`),
+         which this sniff rejects: it expects [a-z0-9_] only. The slash is the
+         documented, deliberate shape of this plugin's extension points. -->
+    <rule ref="WordPress.NamingConventions.ValidHookName.UseUnderscores">
+        <severity>0</severity>
+    </rule>
+
     <rule ref="VariableAnalysis.CodeAnalysis.VariableAnalysis">
         <properties>
             <!-- Do not report on unused variables before require nor unused/undefined variables in file scope. -->
