@@ -30,12 +30,23 @@ function srfe_uninstall_site() {
 	// Per-user status notices, for every user.
 	delete_metadata( 'user', 0, '_srfe_admin_notice', '', true );
 
-	// Signature-refresh events pending per download.
-	wp_clear_scheduled_hook( 'srfe_refresh_signature' );
+	// Signature-refresh events, scheduled per download with the download ID as
+	// an argument. wp_clear_scheduled_hook() only matches the exact argument
+	// list it is given (the args are hashed into the event's key), so with no
+	// arguments it would clear nothing here; wp_unschedule_hook() clears every
+	// event for the hook regardless of arguments.
+	wp_unschedule_hook( 'srfe_refresh_signature' );
 }
 
 if ( is_multisite() ) {
-	$srfe_site_ids = get_sites( [ 'fields' => 'ids' ] );
+	// 'number' => 0 removes the LIMIT clause; WP_Site_Query's default of 100
+	// would silently skip every site after the first 100 on a large network.
+	$srfe_site_ids = get_sites(
+		[
+			'fields' => 'ids',
+			'number' => 0,
+		]
+	);
 
 	foreach ( $srfe_site_ids as $srfe_site_id ) {
 		switch_to_blog( (int) $srfe_site_id );
