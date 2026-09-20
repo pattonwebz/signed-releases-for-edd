@@ -58,11 +58,15 @@
     </rule>
     <rule ref="Generic.Arrays.DisallowLongArraySyntax"/>
 
-    <!-- Public hooks use the {prefix}/{hook} convention (`srfe/signature_path_root`),
-         which this sniff rejects: it expects [a-z0-9_] only. The slash is the
-         documented, deliberate shape of this plugin's extension points. -->
-    <rule ref="WordPress.NamingConventions.ValidHookName.UseUnderscores">
-        <severity>0</severity>
+    <!-- Public hooks use the {prefix}/{hook} convention (`srfe/signature_path_root`).
+         Declare `/` as an additional word delimiter so the ValidHookName sniff
+         accepts it, instead of disabling the UseUnderscores check outright. This
+         keeps the lowercase check and every other hook-name rule active for all
+         other hooks. The property is WPCS' supported mechanism for this. -->
+    <rule ref="WordPress.NamingConventions.ValidHookName">
+        <properties>
+            <property name="additionalWordDelimiters" value="/"/>
+        </properties>
     </rule>
 
     <rule ref="VariableAnalysis.CodeAnalysis.VariableAnalysis">
