@@ -22,14 +22,14 @@ final class RevocationStoreTest extends TestCase {
 
 		return "untrusted comment: test revocation signature\n"
 			. base64_encode( $payload ) . "\n"
-			. "trusted comment: revocation-manifest sequence:3 format:pattonwebz-revocation-v1\n"
+			. "trusted comment: revocation-manifest sequence:3 format:srcl-revocation-v1\n"
 			. base64_encode( str_repeat( "\x02", 64 ) ) . "\n";
 	}
 
 	private function manifest( int $sequence = 3 ): string {
 		return json_encode(
 			[
-				'format'       => 'pattonwebz-revocation-v1',
+				'format'       => 'srcl-revocation-v1',
 				'sequence'     => $sequence,
 				'issued_at'    => '2026-07-18T14:00:00Z',
 				'revoked_keys' => [
@@ -61,13 +61,13 @@ final class RevocationStoreTest extends TestCase {
 	public function testEnvelopeCarriesTheExactSignedBytes(): void {
 		// Deliberately odd formatting: the signature covers these exact bytes,
 		// so the envelope must never normalise or re-encode the manifest.
-		$manifest = "{ \"format\": \"pattonwebz-revocation-v1\",\n  \"sequence\": 3,\n  \"revoked_keys\": [] }";
+		$manifest = "{ \"format\": \"srcl-revocation-v1\",\n  \"sequence\": 3,\n  \"revoked_keys\": [] }";
 
 		$this->assertSame( RevocationStore::SAVED, $this->revocations->save( $manifest, $this->minisig() ) );
 
 		$envelope = json_decode( $this->revocations->envelope(), true );
 
-		$this->assertSame( 'pattonwebz-revocation-envelope-v1', $envelope['format'] );
+		$this->assertSame( 'srcl-revocation-envelope-v1', $envelope['format'] );
 		$this->assertSame( $manifest, $envelope['manifest'] );
 		$this->assertSame( $this->minisig(), $envelope['minisig'] );
 	}
@@ -77,7 +77,7 @@ final class RevocationStoreTest extends TestCase {
 		// whose signed bytes contain CRLF line endings, non-ASCII, and already-
 		// escaped JSON characters must survive storage + envelope encoding
 		// byte-for-byte, or the client's root-signature check fails.
-		$manifest = "{\r\n  \"format\": \"pattonwebz-revocation-v1\",\r\n"
+		$manifest = "{\r\n  \"format\": \"srcl-revocation-v1\",\r\n"
 			. "  \"sequence\": 7,\r\n"
 			. "  \"reason_note\": \"caf\xC3\xA9 \xF0\x9F\x94\x91 \\\"quoted\\\" \\\\ backslash\",\r\n"
 			. "  \"revoked_keys\": []\r\n}";
@@ -104,7 +104,7 @@ final class RevocationStoreTest extends TestCase {
 	public function testUnknownFormatTagIsRefused(): void {
 		$manifest = json_encode(
 			[
-				'format'   => 'pattonwebz-revocation-v9',
+				'format'   => 'srcl-revocation-v9',
 				'sequence' => 3,
 			]
 		);
@@ -115,7 +115,7 @@ final class RevocationStoreTest extends TestCase {
 	public function testNonIntegerSequenceIsRefused(): void {
 		$manifest = json_encode(
 			[
-				'format'       => 'pattonwebz-revocation-v1',
+				'format'       => 'srcl-revocation-v1',
 				'sequence'     => '3',
 				'revoked_keys' => [],
 			]
@@ -145,7 +145,7 @@ final class RevocationStoreTest extends TestCase {
 		// wp_json_encode() fail; reject it at save time instead.
 		$bad = "untrusted comment: bad \xC3\x28 byte\n"
 			. base64_encode( 'ED' . 'ABCDEFGH' . str_repeat( "\x01", 64 ) ) . "\n"
-			. "trusted comment: revocation-manifest sequence:3 format:pattonwebz-revocation-v1\n"
+			. "trusted comment: revocation-manifest sequence:3 format:srcl-revocation-v1\n"
 			. base64_encode( str_repeat( "\x02", 64 ) ) . "\n";
 
 		$this->assertSame( RevocationStore::ERR_BAD_ENCODING, $this->revocations->save( $this->manifest(), $bad ) );

@@ -251,7 +251,7 @@ class RevocationAdmin {
 				return __( 'Not published: the manifest is not valid JSON.', 'signed-releases-for-edd' );
 
 			case RevocationStore::ERR_BAD_FORMAT:
-				return __( 'Not published: the manifest format tag is missing or unrecognised (expected pattonwebz-revocation-v1).', 'signed-releases-for-edd' );
+				return __( 'Not published: the manifest format tag is missing or unrecognised (expected srcl-revocation-v1).', 'signed-releases-for-edd' );
 
 			case RevocationStore::ERR_BAD_SEQUENCE:
 				return __( 'Not published: the manifest needs an integer sequence >= 1 and a revoked_keys list.', 'signed-releases-for-edd' );

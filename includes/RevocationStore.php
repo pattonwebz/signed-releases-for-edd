@@ -30,10 +30,10 @@ class RevocationStore {
 	const OPTION_MANIFEST = 'srfe_revocation_manifest';
 
 	/** The manifest format this store recognises. */
-	const FORMAT = 'pattonwebz-revocation-v1';
+	const FORMAT = 'srcl-revocation-v1';
 
 	/** The envelope format the endpoint serves (mirrored by the client). */
-	const ENVELOPE_FORMAT = 'pattonwebz-revocation-envelope-v1';
+	const ENVELOPE_FORMAT = 'srcl-revocation-envelope-v1';
 
 	/** Save outcomes, used by the admin page for feedback. */
 	const SAVED               = 'saved';
