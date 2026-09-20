@@ -46,7 +46,7 @@ class Api {
 	 * @param SignatureStore       $store       Signature archive access.
 	 * @param RevocationStore|null $revocations Revocation-manifest access.
 	 */
-	public function __construct( SignatureStore $store, RevocationStore $revocations = null ) {
+	public function __construct( SignatureStore $store, ?RevocationStore $revocations = null ) {
 		$this->store       = $store;
 		$this->revocations = $revocations;
 	}

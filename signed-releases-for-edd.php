@@ -1,14 +1,17 @@
 <?php
 /**
- * Plugin Name: Signed Releases for EDD
- * Plugin URI:  https://github.com/pattonwebz/signed-releases-for-edd
- * Description: Serves minisign signatures for EDD download files: injects them into the Software Licensing get_version API response and exposes a public signature endpoint for manual verification.
- * Version:     0.1.0
- * Author:      William Patton
- * Author URI:  https://www.pattonwebz.com
- * License:     GPL-2.0-or-later
- * Text Domain: signed-releases-for-edd
- * Requires PHP: 7.4
+ * Plugin Name:       Signed Releases for EDD
+ * Plugin URI:        https://github.com/pattonwebz/signed-releases-for-edd
+ * Description:       Serves minisign signatures for EDD download files: injects them into the Software Licensing get_version API response and exposes a public signature endpoint for manual verification.
+ * Version:           0.1.0
+ * Author:            William Patton
+ * Author URI:        https://www.pattonwebz.com
+ * License:           GPL-2.0-or-later
+ * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+ * Text Domain:       signed-releases-for-edd
+ * Requires at least: 6.0
+ * Requires PHP:      7.4
+ * Requires Plugins:  easy-digital-downloads
  *
  * Signatures are produced in CI by signing each release zip with minisign;
  * the resulting <file>.minisig is uploaded next to the zip. This plugin only
