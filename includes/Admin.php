@@ -114,6 +114,7 @@ class Admin {
 	 * @return array<string, string>
 	 */
 	public function allow_minisig_upload( $mimes ) {
+		// phpcs:ignore WordPress.WP.Capabilities.Unknown -- `edit_products` is registered by Easy Digital Downloads (the `download` post type uses 'capability_type' => 'product'), not by core.
 		if ( current_user_can( 'edit_products' ) || current_user_can( 'manage_options' ) ) {
 			$mimes['minisig'] = 'text/plain';
 		}
@@ -137,6 +138,7 @@ class Admin {
 		unset( $file );
 
 		if ( '.minisig' === substr( strtolower( $filename ), -8 )
+			// phpcs:ignore WordPress.WP.Capabilities.Unknown -- `edit_products` is registered by Easy Digital Downloads (the `download` post type uses 'capability_type' => 'product'), not by core.
 			&& ( current_user_can( 'edit_products' ) || current_user_can( 'manage_options' ) ) ) {
 			$types['ext']  = 'minisig';
 			$types['type'] = 'text/plain';
@@ -404,6 +406,7 @@ class Admin {
 	 * Print (and clear) the current user's pending signature-problem notice.
 	 */
 	public function render_notice() {
+		// phpcs:ignore WordPress.WP.Capabilities.Unknown -- `edit_products` is registered by Easy Digital Downloads (the `download` post type uses 'capability_type' => 'product'), not by core.
 		if ( ! current_user_can( 'edit_products' ) ) {
 			return;
 		}
