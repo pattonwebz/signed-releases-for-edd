@@ -64,6 +64,10 @@ The companion client library fails closed: in enforce mode the update is refused
 
 No. There is no telemetry, no phoning home, and no service the plugin author operates.
 
+= What happens to my data if I delete the plugin? =
+
+Uninstalling removes this plugin's regenerable data: the slug index, the per-download signature status, retry counters and per-user notices, plus any pending refresh events. It deliberately keeps the store's published revocation manifest, the archived signatures and the per-download plugin slug, because the manifest's sequence number ratchets forward on every verifying client — deleting it would leave those clients unable to accept a future revocation. Set `SRFE_UNINSTALL_REMOVE_STORE_DATA` to true to remove those as well. Easy Digital Downloads' own data is never touched either way.
+
 == External services ==
 
 This plugin makes no requests to the plugin author or to any service operated by the plugin author. It contacts the following, all of which belong to your own store:
