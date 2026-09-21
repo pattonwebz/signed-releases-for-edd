@@ -188,6 +188,43 @@ final class SignatureStoreTest extends TestCase {
 		rmdir( $outside );
 	}
 
+	/**
+	 * The containment root is overridable through `srfe/signature_path_root`.
+	 * Pinning the wire name here means a rename or a typo in it fails this test,
+	 * instead of the override silently ceasing to have any effect while every
+	 * other test keeps passing.
+	 */
+	public function testSignaturePathRootFilterMovesTheContainmentRoot(): void {
+		$alt = sys_get_temp_dir() . '/srfe-alt-root-' . getmypid();
+		mkdir( $alt, 0700, true );
+		file_put_contents( $alt . '/x.zip', 'zip-bytes' );
+		file_put_contents( $alt . '/x.zip.minisig', $this->makeMinisig() );
+
+		$this->setupDownload( 61, '1.0.0', array( $alt . '/x.zip' ) );
+
+		// Baseline: against the default root (WP_CONTENT_DIR, i.e. the sandbox)
+		// this path is outside containment, so it must be refused unread.
+		$baseline = $this->store->discover( 61 );
+
+		$this->assertSame( SignatureStore::STATUS_OFFSITE, $baseline['status'] );
+		$this->assertNull( $baseline['minisig'], 'Out-of-root content must not be read without the filter.' );
+
+		// With the root moved onto that directory the same path is inside
+		// containment, so the signature must now be read and returned. If the
+		// filter name above ever changes, this stops taking effect and the
+		// assertion below fails as STATUS_OFFSITE.
+		$GLOBALS['__wp_filter_overrides']['srfe/signature_path_root'] = $alt;
+
+		$filtered = $this->store->discover( 61 );
+
+		$this->assertSame( SignatureStore::STATUS_FOUND, $filtered['status'] );
+		$this->assertSame( $this->makeMinisig(), $filtered['minisig'] );
+
+		unlink( $alt . '/x.zip' );
+		unlink( $alt . '/x.zip.minisig' );
+		rmdir( $alt );
+	}
+
 	public function testDiscoverRejectsNonSignatureContent(): void {
 		$path = $this->placeFile( 'fake.zip', '<html>404 page pretending to be a signature</html>' );
 		$this->setupDownload( 17, '1.0.0', array( $path ) );
